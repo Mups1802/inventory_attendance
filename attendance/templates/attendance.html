@@ -1,0 +1,308 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Management</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --background-color: #f0f4f8;
+            --text-color: #34495e;
+            --card-background: #ffffff;
+            --error-color: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 500px;
+            margin: 20px auto;
+            text-align: center;
+            background-color: var(--card-background);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #error {
+            color: var(--error-color);
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: var(--card-background);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        tr:hover {
+            background-color: #e9ecef;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .nav button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .nav button:hover {
+            background-color: var(--secondary-color);
+        }
+        #historyPage {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            table {
+                font-size: 14px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Class Register</h1>
+    <div class="nav">
+        <button onclick="showScanner()">Scanner</button>
+        <button onclick="showHistory()">History</button>
+    </div>
+    <div id="error"></div>
+
+    <div id="scannerPage">
+        <!-- QR Code Reader -->
+        <div id="reader"></div>
+
+        <table id="attendanceTable">
+            <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Date</th>
+                    <th>Time In</th>
+                    <th>Time Out</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be populated here -->
+            </tbody>
+        </table>
+    </div>
+
+    <div id="historyPage">
+        <h2>Attendance History</h2>
+        <table id="historyTable">
+            <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Date</th>
+                    <th>Time In</th>
+                    <th>Time Out</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- History data will be populated here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function showScanner() {
+            document.getElementById('scannerPage').style.display = 'block';
+            document.getElementById('historyPage').style.display = 'none';
+        }
+
+        function showHistory() {
+            document.getElementById('scannerPage').style.display = 'none';
+            document.getElementById('historyPage').style.display = 'block';
+            fetchAttendanceHistory();
+        }
+
+        async function fetchAttendanceHistory() {
+            try {
+                const response = await fetch('{% url "get_attendance_history" %}');
+                const history = await response.json();
+                updateHistoryTable(history);
+            } catch (error) {
+                console.error('Error fetching attendance history:', error);
+            }
+        }
+
+        function updateHistoryTable(history) {
+            const tbody = document.querySelector('#historyTable tbody');
+            tbody.innerHTML = '';
+            history.forEach(record => {
+                let row = `<tr>
+                    <td>${record.student_id}</td>
+                    <td>${record.student_name}</td>
+                    <td>${record.date}</td>
+                    <td>${record.time_in ? new Date(record.time_in).toLocaleTimeString() : 'N/A'}</td>
+                    <td>${record.time_out ? new Date(record.time_out).toLocaleTimeString() : 'N/A'}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function updateAttendanceTable() {
+            fetch('{% url "get_attendance_history" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.querySelector('#attendanceTable tbody');
+                    tbody.innerHTML = '';
+                    data.forEach(record => {
+                        let row = `<tr>
+                            <td>${record.student_id}</td>
+                            <td>${record.student_name}</td>
+                            <td>${record.date}</td>
+                            <td>${record.time_in ? new Date(record.time_in).toLocaleTimeString() : 'N/A'}</td>
+                            <td>${record.time_out ? new Date(record.time_out).toLocaleTimeString() : 'N/A'}</td>
+                        </tr>`;
+                        tbody.innerHTML += row;
+                    });
+                })
+                .catch(error => console.error('Error fetching attendance data:', error));
+        }
+
+        async function recordAttendance(studentId, studentName) {
+            try {
+                const response = await fetch('{% url "record_attendance" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        student_name: studentName,
+                    }),
+                });
+        
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+        
+                const data = await response.json();
+                console.log(data);
+                return data;
+            } catch (error) {
+                console.error('Error recording attendance:', error);
+                throw error;
+            }
+        }
+
+        async function onScanSuccess(qrMessage) {
+            console.log(`QR Code detected: ${qrMessage}`);
+
+            try {
+                const qrData = Function('return ' + qrMessage)();
+                const studentId = qrData.student_id;
+                const studentName = qrData.student_name;
+
+                if (!studentId || !studentName) {
+                    throw new Error('Invalid QR code data');
+                }
+
+                await recordAttendance(studentId, studentName);
+                updateAttendanceTable();
+                document.getElementById('error').style.display = 'none';
+
+            } catch (error) {
+                console.error('Error processing QR code:', error);
+                document.getElementById('error').textContent = 'Error processing QR code. Please try again.';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        function onScanError(errorMessage) {
+            console.error(`QR Code scan error: ${errorMessage}`);
+        }
+
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        const html5QrCode = new Html5Qrcode("reader");
+        const cameraConfig = isMobileDevice() ? { facingMode: "environment" } : { facingMode: "user" };
+
+        html5QrCode.start(
+            cameraConfig,
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            },
+            onScanSuccess,
+            onScanError
+        ).catch(function (err) {
+            console.error(`Failed to start QR scanner: ${err}`);
+            document.getElementById('error').textContent = 'Failed to start QR scanner. Please check your camera.';
+            document.getElementById('error').style.display = 'block';
+        });
+
+        // Initially show the scanner page
+        showScanner();
+    </script>
+</body>
+
+</html>
